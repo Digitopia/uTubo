@@ -11,7 +11,7 @@
 #include <fixedMath.h>// Fixed math 
 //#include <mozzi_midi.h>// Midi utility (mtof conversion)
  
-#define CONTROL_RATE 256 // or some other power of 2 (min=64) (max for this sketch=128)
+#define CONTROL_RATE 128 // or some other power of 2 (min=64) (max for this sketch=128)
 #define MAX_DELAY 1024 // maximum delay size 
 #define MIN_DELAY 125 // minimum delay size 
 
@@ -60,6 +60,11 @@ void setup() {
   //pinkNoise.setFreq((float)AUDIO_RATE/PINKNOISE8192_NUM_CELLS); // set pinkNoise osc freq (curr = 2)
   impulseDuration.start(20); 
 
+  // set flex sensors initial values at setup() so that the instrument doesn't start playing after being powered on
+  leftFlex = analogRead(A0)-200; 
+  rightFlex = analogRead(A1)-200;
+  restLFlex = leftFlex; 
+  restRFlex = rightFlex; 
 }
 
 ///////////////////////////////////////////////CONTROL/////////////////////////////////////////////////
@@ -87,8 +92,12 @@ int updateAudio() {
 void readSensors() { //READ SENSOR DATA
 
   memb = analogRead(A2); 
-  if(memb>0){ membrane = (SENSORVAL - memb)>>1; } // 1~512 (this should be half of MAX_DELAY)
-
+  memb = sqrt(memb/1024.f) * 1024;
+   
+  //if(memb>0){ membrane = (SENSORVAL - memb)>>1; } // 1~512 (this should be half of MAX_DELAY) : light calculation
+  if(memb>0){ membrane = (SENSORVAL - memb)/2.f; } // 1~512 : heavy calculation
+  // NOTE: heavy calculations should be replace by Mozzi's fixedMath methods 
+  
   leftFlex = analogRead(A0)-200; 
   rightFlex = analogRead(A1)-200;
 
@@ -116,7 +125,9 @@ void mapping() {   //SENSOR->SYNTH MAPPING
   } else { metro = true; } 
   
   // SET METRO TIME 
-  metroTime = (((leftFlex * rightFlex)*(membrane/128))>>7) + METRO_MIN;
+  //metroTime = (((leftFlex * rightFlex)*(membrane/128))>>7) + METRO_MIN; // : light calculation 
+  metroTime = (((leftFlex * rightFlex)*(membrane/128.f)) /128.f) + METRO_MIN; // : heavy calculation (enables really continuous time changes)
+  // NOTE: heavy calculations should be replace by Mozzi's fixedMath methods
   
   // SET DELAY TIME (wich corresponds to heard pitch)
   leftDelaySize = membrane + leftFlex + MIN_DELAY;
